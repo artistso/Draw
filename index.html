@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Animation Studio - AI-Powered Animation</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #1c2b4a;
+  --primary: #7B2FF7;
+  --primary2: #6C63FF;
+  --accent: #00D9FF;
+  --coral: #FF6B6B;
+  --text: #F7F7FF;
+  --text2: #9E9EAD;
+  --border: #2D2D3F;
+  --success: #4ECDC4;
+  --warning: #FF8C42;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; user-select:none; -webkit-user-select:none; }
+#app { display:flex; flex-direction:column; height:100vh; }
+
+/* Top Bar */
+#topbar { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--surface); border-bottom:1px solid var(--border); min-height:48px; }
+#topbar .logo { font-weight:700; font-size:14px; color:var(--primary2); margin-right:12px; white-space:nowrap; }
+#topbar .sep { width:1px; height:24px; background:var(--border); margin:0 4px; }
+.btn { display:inline-flex; align-items:center; gap:4px; padding:6px 12px; border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; transition:var(--transition); white-space:nowrap; }
+.btn:hover { background:var(--primary); border-color:var(--primary); }
+.btn.active { background:var(--primary); border-color:var(--primary2); box-shadow:0 0 0 2px rgba(123,47,247,0.3); }
+.btn-group { display:flex; gap:2px; }
+.btn-group .btn { border-radius:0; margin:0; }
+.btn-group .btn:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
+.btn-group .btn:last-child { border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+.slider-group { display:flex; align-items:center; gap:4px; }
+.slider-group label { font-size:10px; color:var(--text2); white-space:nowrap; }
+.slider-group input[type=range] { width:80px; accent-color:var(--primary); }
+.slider-group .val { font-size:10px; min-width:30px; text-align:right; color:var(--text2); }
+.color-dot { width:24px; height:24px; border-radius:50%; border:2px solid var(--border); cursor:pointer; background:#000; }
+
+/* Main Layout */
+#main { display:flex; flex:1; overflow:hidden; }
+#canvas-area { flex:1; display:flex; align-items:center; justify-content:center; background:#000; position:relative; overflow:hidden; }
+#canvas-area canvas { background:#fff; image-rendering:auto; cursor:crosshair; }
+#canvas-area canvas.eraser { cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='red' stroke-width='2'/%3E%3C/svg%3E") 12 12, crosshair; }
+
+/* Side Panels */
+.side-panel { width:260px; background:var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
+.side-panel.left { border-left:none; border-right:1px solid var(--border); }
+.panel-section { padding:12px; border-bottom:1px solid var(--border); }
+.panel-section h3 { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent); margin-bottom:8px; }
+.layer-item, .frame-item { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:var(--radius-sm); cursor:pointer; font-size:11px; transition:var(--transition); }
+.layer-item:hover, .frame-item:hover { background:var(--surface2); }
+.layer-item.active, .frame-item.active { background:rgba(123,47,247,0.2); border:1px solid var(--primary); }
+.layer-item .vis { cursor:pointer; font-size:14px; width:20px; text-align:center; }
+
+/* Timeline */
+#timeline { height:140px; background:var(--surface); border-top:1px solid var(--border); display:flex; flex-direction:column; }
+#timeline-header { display:flex; align-items:center; gap:8px; padding:4px 12px; border-bottom:1px solid var(--border); min-height:32px; }
+#timeline-frames { flex:1; overflow-x:auto; display:flex; align-items:stretch; gap:2px; padding:4px 12px; }
+.timeline-frame { min-width:60px; background:var(--surface2); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; border:2px solid transparent; transition:var(--transition); font-size:10px; padding:4px; }
+.timeline-frame:hover { border-color:var(--text2); }
+.timeline-frame.active { border-color:var(--primary); background:rgba(123,47,247,0.15); }
+.timeline-frame.keyframe { border-bottom:3px solid var(--warning); }
+.timeline-frame.ai { border-bottom:3px solid var(--accent); }
+.timeline-frame .thumb { width:40px; height:30px; background:#fff; border-radius:2px; margin-bottom:2px; }
+.timeline-frame .num { font-size:9px; color:var(--text2); }
+#playhead { position:absolute; bottom:0; width:2px; background:var(--primary); z-index:10; pointer-events:none; }
+
+/* AI Panel */
+.ai-card { background:var(--surface2); border-radius:var(--radius-sm); padding:10px; margin-bottom:8px; border:1px solid var(--border); }
+.ai-card h4 { font-size:12px; color:var(--accent); margin-bottom:4px; }
+.ai-card p { font-size:10px; color:var(--text2); margin-bottom:8px; line-height:1.4; }
+.ai-card .btn { width:100%; justify-content:center; }
+.loading { display:inline-block; width:12px; height:12px; border:2px solid var(--text2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.tooltip { font-size:9px; color:var(--warning); margin-top:4px; }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:100; }
+.modal { background:var(--surface); border-radius:var(--radius); padding:24px; min-width:320px; max-width:480px; box-shadow:var(--shadow); }
+.modal h2 { margin-bottom:12px; font-size:18px; }
+.modal input { width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); font-size:14px; margin-bottom:12px; }
+.modal .actions { display:flex; gap:8px; justify-content:flex-end; }
+
+/* Onion skin toggle display */
+.onion-indicator { position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:var(--accent); padding:4px 8px; border-radius:4px; font-size:10px; pointer-events:none; }
+
+/* Toast */
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--success); color:#000; padding:8px 20px; border-radius:20px; font-size:13px; font-weight:600; z-index:200; animation:fadeInOut 2s forwards; }
+@keyframes fadeInOut { 0%{opacity:0;transform:translateX(-50%) translateY(10px)} 15%{opacity:1;transform:translateX(-50%) translateY(0)} 85%{opacity:1} 100%{opacity:0} }
+
+/* Responsive */
+@media (max-width:900px) {
+  .side-panel { width:200px; }
+  #topbar { flex-wrap:wrap; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Toolbar -->
+  <div id="topbar">
+    <span class="logo">🎬 Animation Studio</span>
+    <span class="sep"></span>
+    <div class="btn-group" id="tool-buttons">
+      <button class="btn active" data-tool="brush" title="Brush (B)">🖌️</button>
+      <button class="btn" data-tool="pencil" title="Pencil (P)">✏️</button>
+      <button class="btn" data-tool="ink" title="Ink Pen (I)">🖊️</button>
+      <button class="btn" data-tool="airbrush" title="Airbrush (A)">🎯</button>
+      <button class="btn" data-tool="eraser" title="Eraser (E)">🧹</button>
+      <button class="btn" data-tool="fill" title="Fill (F)">🪣</button>
+    </div>
+    <span class="sep"></span>
+    <div class="slider-group">
+      <label>Size</label>
+      <input type="range" id="brush-size" min="1" max="100" value="10">
+      <span class="val" id="size-val">10</span>
+    </div>
+    <div class="slider-group">
+      <label>Opacity</label>
+      <input type="range" id="brush-opacity" min="5" max="100" value="100">
+      <span class="val" id="opacity-val">100%</span>
+    </div>
+    <input type="color" id="color-picker" value="#000000" class="color-dot" title="Color">
+    <span class="sep"></span>
+    <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)">↩️ Undo</button>
+    <button class="btn" id="btn-redo" title="Redo (Ctrl+Y)">↪️ Redo</button>
+    <span class="sep"></span>
+    <button class="btn" id="btn-onion" title="Toggle Onion Skin">👻 Onion</button>
+    <button class="btn active" id="btn-ai-tween" title="AI Tweening">🤖 AI</button>
+    <span class="sep"></span>
+    <button class="btn" id="btn-export" style="background:var(--success);color:#000;font-weight:600;">📤 Export GIF</button>
+  </div>
+
+  <!-- Main content -->
+  <div id="main">
+    <!-- Left panel: Layers -->
+    <div class="side-panel left" id="layers-panel">
+      <div class="panel-section">
+        <h3>📑 Layers</h3>
+        <button class="btn" id="btn-add-layer" style="width:100%;margin-bottom:8px;">+ Add Layer</button>
+        <div id="layer-list"></div>
+      </div>
+      <div class="panel-section">
+        <h3>🦴 Rigging (AI)</h3>
+        <div class="ai-card">
+          <h4>Auto Character Rig</h4>
+          <p>Detect body parts and create a bone structure from your drawing.</p>
+          <button class="btn" id="btn-auto-rig">🦴 Auto-Rig Character</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas-area">
+      <canvas id="draw-canvas"></canvas>
+      <div class="onion-indicator" id="onion-indicator">👻 Onion Skin ON</div>
+      <div id="brush-preview" style="position:absolute;border-radius:50%;border:1px dashed var(--primary);pointer-events:none;display:none;"></div>
+    </div>
+
+    <!-- Right panel: AI Tools -->
+    <div class="side-panel" id="ai-panel">
+      <div class="panel-section">
+        <h3>🤖 AI Animation Tools</h3>
+        <div class="ai-card">
+          <h4>🔄 Auto In-Betweening</h4>
+          <p>Generate smooth intermediate frames between keyframes with configurable easing.</p>
+          <div style="margin-bottom:6px;">
+            <label style="font-size:10px;color:var(--text2);">In-Between Frames:</label>
+            <select id="inbetween-count" style="width:100%;padding:4px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px;margin-top:2px;">
+              <option value="1">1 frame</option>
+              <option value="2">2 frames</option>
+              <option value="3" selected>3 frames</option>
+              <option value="5">5 frames</option>
+              <option value="7">7 frames</option>
+            </select>
+          </div>
+          <div style="margin-bottom:6px;">
+            <label style="font-size:10px;color:var(--text2);">Easing:</label>
+            <select id="easing-type" style="width:100%;padding:4px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px;margin-top:2px;">
+              <option value="smooth">Smooth (smoothstep)</option>
+              <option value="linear">Linear</option>
+              <option value="easein">Ease In</option>
+              <option value="easeout">Ease Out</option>
+              <option value="easeinout">Ease In/Out</option>
+              <option value="bounce">Bounce</option>
+              <option value="elastic">Elastic</option>
+            </select>
+          </div>
+          <button class="btn" id="btn-tween" style="background:var(--primary);width:100%;">✨ Generate In-Betweens</button>
+        </div>
+
+        <div class="ai-card">
+          <h4>✨ Motion Smoothing</h4>
+          <p>Apply intelligent temporal/spatial smoothing to strokes.</p>
+          <div style="margin-bottom:6px;">
+            <label style="font-size:10px;color:var(--text2);">Strength:</label>
+            <input type="range" id="smoothing-strength" min="1" max="100" value="50" style="width:100%;accent-color:var(--accent);">
+            <span style="font-size:10px;color:var(--text2);" id="smoothing-val">50%</span>
+          </div>
+          <button class="btn" id="btn-smooth" style="width:100%;">✨ Apply Smoothing</button>
+        </div>
+
+        <div class="ai-card">
+          <h4>🔑 Keyframe Tools</h4>
+          <p>Quickly manage keyframes for AI-assisted animation.</p>
+          <button class="btn" id="btn-mark-keyframe" style="width:100%;margin-bottom:4px;">📌 Mark as Keyframe</button>
+          <button class="btn" id="btn-duplicate-frame" style="width:100%;margin-bottom:4px;">📋 Duplicate Frame</button>
+          <button class="btn" id="btn-clear-frame" style="width:100%;">🗑️ Clear Frame</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div id="timeline">
+    <div id="timeline-header">
+      <button class="btn" id="btn-first">⏮️</button>
+      <button class="btn" id="btn-prev">⏪</button>
+      <button class="btn" id="btn-play" style="background:var(--primary);width:36px;height:28px;">▶️</button>
+      <button class="btn" id="btn-next">⏩</button>
+      <button class="btn" id="btn-last">⏭️</button>
+      <span class="sep"></span>
+      <span style="font-size:11px;">FPS:</span>
+      <select id="fps-select" style="padding:2px 4px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:11px;">
+        <option value="8">8</option>
+        <option value="12" selected>12</option>
+        <option value="24">24</option>
+        <option value="30">30</option>
+        <option value="60">60</option>
+      </select>
+      <span class="sep"></span>
+      <button class="btn" id="btn-add-frame">+ Frame</button>
+      <span style="font-size:11px;color:var(--text2);" id="frame-info">Frame 1/24</span>
+    </div>
+    <div id="timeline-frames"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" style="display:none;"></div>
+
+<script>
+// ============================================================
+// ANIMATION STUDIO - Complete Web Application
+// ============================================================
+
+const APP = {
+  // Canvas
+  canvas: null,
+  ctx: null,
+  width: 1280,
+  height: 720,
+
+  // Drawing state
+  currentTool: 'brush',
+  brushSize: 10,
+  brushOpacity: 1.0,
+  currentColor: '#000000',
+  isDrawing: false,
+  currentStroke: [],
+  strokeCanvas: null,
+  strokeCtx: null,
+
+  // Animation state
+  frames: [],
+  currentFrame: 0,
+  totalFrames: 24,
+  fps: 12,
+  isPlaying: false,
+  playInterval: null,
+  keyframes: new Set(),
+  aiGenerated: new Set(),
+
+  // Layers
+  layers: [],
+  currentLayerIndex: 0,
+
+  // Onion skin
+  onionSkinEnabled: true,
+  onionSkinFrames: 2,
+
+  // AI features
+  aiTweeningEnabled: true,
+  motionSmoothingStrength: 0.5,
+
+  // Undo/Redo
+  undoStack: [],
+  redoStack: [],
+
+  // Rigging
+  rig: null,
+  showRig: false,
+};
+
+// Initialize
+function init() {
+  APP.canvas = document.getElementById('draw-canvas');
+  APP.ctx = APP.canvas.getContext('2d');
+
+  // Create offscreen canvas for strokes
+  APP.strokeCanvas = document.createElement('canvas');
+  APP.strokeCtx = APP.strokeCanvas.getContext('2d');
+
+  // Default layers
+  APP.layers = [
+    { id: genId(), name: 'Background', visible: true, locked: false, frames: {} },
+    { id: genId(), name: 'Line Art', visible: true, locked: false, frames: {} },
+    { id: genId(), name: 'Color', visible: true, locked: false, frames: {} },
+  ];
+  APP.currentLayerIndex = 1;
+
+  // Initialize frames
+  for (let i = 0; i < APP.totalFrames; i++) {
+    APP.frames[i] = { strokes: [], bitmap: null };
+  }
+  // Mark some keyframes
+  APP.keyframes.add(0);
+  APP.keyframes.add(6);
+  APP.keyframes.add(12);
+  APP.keyframes.add(18);
+
+  resizeCanvas();
+  setupToolbar();
+  setupCanvasEvents();
+  setupKeyboardShortcuts();
+  renderLayerList();
+  renderTimeline();
+  renderCurrentFrame();
+
+  window.addEventListener('resize', resizeCanvas);
+}
+
+function genId() { return Math.random().toString(36).substr(2, 9); }
+
+function resizeCanvas() {
+  const area = document.getElementById('canvas-area');
+  const maxW = area.clientWidth - 4;
+  const maxH = area.clientHeight - 4;
+  const scale = Math.min(maxW / APP.width, maxH / APP.height);
+  APP.canvas.style.width = (APP.width * scale) + 'px';
+  APP.canvas.style.height = (APP.height * scale) + 'px';
+  APP.canvas.width = APP.width;
+  APP.canvas.height = APP.height;
+  APP.strokeCanvas.width = APP.width;
+  APP.strokeCanvas.height = APP.height;
+  renderCurrentFrame();
+}
+
+// ============================================================
+// TOOLBAR
+// ============================================================
+function setupToolbar() {
+  // Tool buttons
+  document.querySelectorAll('#tool-buttons .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#tool-buttons .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      APP.currentTool = btn.dataset.tool;
+      APP.canvas.classList.toggle('eraser', APP.currentTool === 'eraser');
+    });
+  });
+
+  // Sliders
+  document.getElementById('brush-size').addEventListener('input', e => {
+    APP.brushSize = parseInt(e.target.value);
+    document.getElementById('size-val').textContent = APP.brushSize;
+  });
+  document.getElementById('brush-opacity').addEventListener('input', e => {
+    APP.brushOpacity = parseInt(e.target.value) / 100;
+    document.getElementById('opacity-val').textContent = Math.round(APP.brushOpacity * 100) + '%';
+  });
+  document.getElementById('color-picker').addEventListener('input', e => {
+    APP.currentColor = e.target.value;
+  });
+
+  // Action buttons
+  document.getElementById('btn-undo').addEventListener('click', undo);
+  document.getElementById('btn-redo').addEventListener('click', redo);
+
+  // Toggles
+  document.getElementById('btn-onion').addEventListener('click', () => {
+    APP.onionSkinEnabled = !APP.onionSkinEnabled;
+    document.getElementById('btn-onion').classList.toggle('active', APP.onionSkinEnabled);
+    document.getElementById('onion-indicator').style.display = APP.onionSkinEnabled ? 'block' : 'none';
+    renderCurrentFrame();
+  });
+  document.getElementById('btn-onion').classList.toggle('active', APP.onionSkinEnabled);
+  document.getElementById('onion-indicator').style.display = APP.onionSkinEnabled ? 'block' : 'none';
+
+  document.getElementById('btn-ai-tween').addEventListener('click', () => {
+    APP.aiTweeningEnabled = !APP.aiTweeningEnabled;
+    document.getElementById('btn-ai-tween').classList.toggle('active', APP.aiTweeningEnabled);
+  });
+
+  // Export
+  document.getElementById('btn-export').addEventListener('click', exportGIF);
+
+  // Layers
+  document.getElementById('btn-add-layer').addEventListener('click', addLayer);
+
+  // AI buttons
+  document.getElementById('btn-tween').addEventListener('click', generateInBetweens);
+  document.getElementById('btn-smooth').addEventListener('click', applyMotionSmoothing);
+  document.getElementById('btn-auto-rig').addEventListener('click', autoRigCharacter);
+  document.getElementById('btn-mark-keyframe').addEventListener('click', toggleKeyframe);
+  document.getElementById('btn-duplicate-frame').addEventListener('click', duplicateFrame);
+  document.getElementById('btn-clear-frame').addEventListener('click', clearFrame);
+
+  // Smoothing slider
+  document.getElementById('smoothing-strength').addEventListener('input', e => {
+    APP.motionSmoothingStrength = parseInt(e.target.value) / 100;
+    document.getElementById('smoothing-val').textContent = Math.round(APP.motionSmoothingStrength * 100) + '%';
+  });
+
+  // Timeline controls
+  document.getElementById('btn-first').addEventListener('click', () => goToFrame(0));
+  document.getElementById('btn-prev').addEventListener('click', () => goToFrame(APP.currentFrame - 1));
+  document.getElementById('btn-next').addEventListener('click', () => goToFrame(APP.currentFrame + 1));
+  document.getElementById('btn-last').addEventListener('click', () => goToFrame(APP.totalFrames - 1));
+  document.getElementById('btn-play').addEventListener('click', togglePlayback);
+  document.getElementById('btn-add-frame').addEventListener('click', addFrame);
+  document.getElementById('fps-select').addEventListener('change', e => {
+    APP.fps = parseInt(e.target.value);
+    if (APP.isPlaying) { stopPlayback(); startPlayback(); }
+  });
+}
+
+// ============================================================
+// CANVAS DRAWING
+// ============================================================
+function setupCanvasEvents() {
+  const canvas = APP.canvas;
+
+  canvas.addEventListener('pointerdown', e => {
+    APP.isDrawing = true;
+    const pos = getCanvasPos(e);
+    APP.currentStroke = [{ x: pos.x, y: pos.y, pressure: e.pressure || 1, tilt: e.tiltX || 0 }];
+    saveUndoState();
+    renderCurrentFrame();
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (!APP.isDrawing) return;
+    const pos = getCanvasPos(e);
+    APP.currentStroke.push({ x: pos.x, y: pos.y, pressure: e.pressure || 1, tilt: e.tiltX || 0 });
+    renderCurrentFrame();
+    drawCurrentStroke();
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    if (!APP.isDrawing) return;
+    APP.isDrawing = false;
+    if (APP.currentStroke.length > 1) {
+      commitStroke();
+    }
+    APP.currentStroke = [];
+    renderCurrentFrame();
+  });
+
+  canvas.addEventListener('pointerleave', e => {
+    if (APP.isDrawing) {
+      APP.isDrawing = false;
+      if (APP.currentStroke.length > 1) commitStroke();
+      APP.currentStroke = [];
+      renderCurrentFrame();
+    }
+  });
+}
+
+function getCanvasPos(e) {
+  const rect = APP.canvas.getBoundingClientRect();
+  const scaleX = APP.width / rect.width;
+  const scaleY = APP.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+function commitStroke() {
+  const layer = APP.layers[APP.currentLayerIndex];
+  if (!layer.frames[APP.currentFrame]) {
+    layer.frames[APP.currentFrame] = { strokes: [] };
+  }
+
+  const toolMap = {
+    brush: 'BRUSH', pencil: 'PENCIL', ink: 'INK_PEN',
+    airbrush: 'AIRBRUSH', eraser: 'ERASER', fill: 'FILL'
+  };
+
+  layer.frames[APP.currentFrame].strokes.push({
+    points: [...APP.currentStroke],
+    color: APP.currentTool === 'eraser' ? '#FFFFFF' : APP.currentColor,
+    size: APP.brushSize,
+    opacity: APP.brushOpacity,
+    tool: toolMap[APP.currentTool] || 'BRUSH',
+  });
+
+  APP.undoStack.push({
+    layerIndex: APP.currentLayerIndex,
+    frameIndex: APP.currentFrame,
+    strokes: layer.frames[APP.currentFrame].strokes.slice(0, -1),
+  });
+  APP.redoStack = [];
+}
+
+function saveUndoState() {
+  const layer = APP.layers[APP.currentLayerIndex];
+  const currentStrokes = layer.frames[APP.currentFrame]?.strokes || [];
+  APP.undoStack.push({
+    layerIndex: APP.currentLayerIndex,
+    frameIndex: APP.currentFrame,
+    strokes: [...currentStrokes],
+  });
+  APP.redoStack = [];
+}
+
+function undo() {
+  const state = APP.undoStack.pop();
+  if (!state) return;
+  const layer = APP.layers[state.layerIndex];
+  const currentStrokes = layer.frames[state.frameIndex]?.strokes || [];
+  APP.redoStack.push({
+    layerIndex: state.layerIndex,
+    frameIndex: state.frameIndex,
+    strokes: [...currentStrokes],
+  });
+  if (!layer.frames[state.frameIndex]) layer.frames[state.frameIndex] = { strokes: [] };
+  layer.frames[state.frameIndex].strokes = state.strokes;
+  renderCurrentFrame();
+}
+
+function redo() {
+  const state = APP.redoStack.pop();
+  if (!state) return;
+  const layer = APP.layers[state.layerIndex];
+  APP.undoStack.push({
+    layerIndex: state.layerIndex,
+    frameIndex: state.frameIndex,
+    strokes: layer.frames[state.frameIndex]?.strokes || [],
+  });
+  if (!layer.frames[state.frameIndex]) layer.frames[state.frameIndex] = { strokes: [] };
+  layer.frames[state.frameIndex].strokes = state.strokes;
+  renderCurrentFrame();
+}
+
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+    if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+    if (e.key === 'b') { selectTool('brush'); }
+    if (e.key === 'p') { selectTool('pencil'); }
+    if (e.key === 'i') { selectTool('ink'); }
+    if (e.key === 'a') { selectTool('airbrush'); }
+    if (e.key === 'e') { selectTool('eraser'); }
+    if (e.key === 'f') { selectTool('fill'); }
+    if (e.key === 'ArrowLeft') { goToFrame(APP.currentFrame - 1); }
+    if (e.key === 'ArrowRight') { goToFrame(APP.currentFrame + 1); }
+    if (e.key === ' ' && !e.target.closest('input,select')) { e.preventDefault(); togglePlayback(); }
+    if (e.key === 'o') {
+      APP.onionSkinEnabled = !APP.onionSkinEnabled;
+      document.getElementById('btn-onion').classList.toggle('active', APP.onionSkinEnabled);
+      document.getElementById('onion-indicator').style.display = APP.onionSkinEnabled ? 'block' : 'none';
+      renderCurrentFrame();
+    }
+  });
+}
+
+function selectTool(tool) {
+  APP.currentTool = tool;
+  document.querySelectorAll('#tool-buttons .btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tool === tool);
+  });
+  APP.canvas.classList.toggle('eraser', tool === 'eraser');
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderCurrentFrame() {
+  const ctx = APP.ctx;
+  const w = APP.width, h = APP.height;
+
+  // Clear
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
+
+  // Render onion skin
+  if (APP.onionSkinEnabled) {
+    for (let offset = 1; offset <= 2; offset++) {
+      const prev = APP.currentFrame - offset;
+      const next = APP.currentFrame + offset;
+      const opacity = 1 - (offset / 3);
+
+      if (prev >= 0) renderFrameToCanvas(ctx, prev, opacity * 0.3);
+      if (next < APP.totalFrames) renderFrameToCanvas(ctx, next, opacity * 0.3);
+    }
+  }
+
+  // Render current frame - all visible layers
+  for (const layer of APP.layers) {
+    if (!layer.visible) continue;
+    const frame = layer.frames[APP.currentFrame];
+    if (!frame) continue;
+
+    for (const stroke of frame.strokes) {
+      drawStroke(ctx, stroke, 1.0);
+    }
+  }
+
+  // Draw rig overlay if active
+  if (APP.rig && APP.showRig) {
+    drawRigOverlay(ctx);
+  }
+
+  // Update timeline active
+  updateTimelineActive();
+}
+
+function renderFrameToCanvas(ctx, frameIndex, opacity) {
+  for (const layer of APP.layers) {
+    if (!layer.visible) continue;
+    const frame = layer.frames[frameIndex];
+    if (!frame) continue;
+    for (const stroke of frame.strokes) {
+      drawStroke(ctx, stroke, opacity);
+    }
+  }
+}
+
+function drawCurrentStroke() {
+  if (APP.currentStroke.length < 2) return;
+  renderCurrentFrame();
+
+  const ctx = APP.ctx;
+  const toolMap = {
+    brush: 'BRUSH', pencil: 'PENCIL', ink: 'INK_PEN',
+    airbrush: 'AIRBRUSH', eraser: 'ERASER'
+  };
+
+  const stroke = {
+    points: APP.currentStroke,
+    color: APP.currentTool === 'eraser' ? '#FFFFFF' : APP.currentColor,
+    size: APP.brushSize,
+    opacity: APP.brushOpacity,
+    tool: toolMap[APP.currentTool] || 'BRUSH',
+  };
+
+  drawStroke(ctx, stroke, 1.0);
+}
+
+function drawStroke(ctx, stroke, globalOpacity) {
+  if (stroke.points.length < 2) return;
+
+  const alpha = stroke.opacity * globalOpacity;
+
+  if (stroke.tool === 'ERASER') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    const c = hexToRgba(stroke.color, alpha);
+    ctx.strokeStyle = c;
+  }
+
+  ctx.lineWidth = stroke.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (stroke.tool === 'AIRBRUSH') {
+    // Airbrush: spray dots
+    for (const pt of stroke.points) {
+      const dots = Math.floor(stroke.size * stroke.size * 0.08 * pt.pressure);
+      for (let d = 0; d < dots; d++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random() * stroke.size;
+        const gr = Math.abs(randomGaussian()) * stroke.size * 0.4;
+        const dx = Math.cos(angle) * gr;
+        const dy = Math.sin(angle) * gr;
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.arc(pt.x + dx, pt.y + dy, Math.max(0.5, stroke.size * 0.05), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (stroke.tool === 'PENCIL') {
+    // Pencil: slightly jittery
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i = 1; i < stroke.points.length; i++) {
+      const jx = (Math.random() - 0.5) * stroke.size * 0.2;
+      const jy = (Math.random() - 0.5) * stroke.size * 0.2;
+      ctx.lineTo(stroke.points[i].x + jx, stroke.points[i].y + jy);
+    }
+    ctx.stroke();
+  } else {
+    // Smooth brush
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+
+    // Use quadratic curves for smoothness
+    for (let i = 1; i < stroke.points.length - 1; i++) {
+      const xc = (stroke.points[i].x + stroke.points[i + 1].x) / 2;
+      const yc = (stroke.points[i].y + stroke.points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(stroke.points[i].x, stroke.points[i].y, xc, yc);
+    }
+
+    if (stroke.points.length >= 2) {
+      ctx.lineTo(stroke.points[stroke.points.length - 1].x, stroke.points[stroke.points.length - 1].y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawRigOverlay(ctx) {
+  if (!APP.rig) return;
+  const rig = APP.rig;
+
+  // Draw bones
+  ctx.strokeStyle = '#FF6B6B';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+
+  for (const bone of rig.bones) {
+    ctx.beginPath();
+    ctx.moveTo(bone.from.x, bone.from.y);
+    ctx.lineTo(bone.to.x, bone.to.y);
+    ctx.stroke();
+  }
+
+  // Draw joints
+  for (const joint of rig.joints) {
+    ctx.fillStyle = joint.isEndpoint ? '#FF6B6B' : '#00D9FF';
+    ctx.beginPath();
+    ctx.arc(joint.x, joint.y, joint.isEndpoint ? 8 : 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = '#FFF';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(joint.name, joint.x, joint.y - 12);
+  }
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function randomGaussian() {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ============================================================
+// LAYERS
+// ============================================================
+function addLayer() {
+  APP.layers.push({
+    id: genId(),
+    name: `Layer ${APP.layers.length + 1}`,
+    visible: true,
+    locked: false,
+    frames: {},
+  });
+  APP.currentLayerIndex = APP.layers.length - 1;
+  renderLayerList();
+}
+
+function renderLayerList() {
+  const container = document.getElementById('layer-list');
+  container.innerHTML = APP.layers.map((layer, i) => `
+    <div class="layer-item ${i === APP.currentLayerIndex ? 'active' : ''}" data-index="${i}">
+      <span class="vis" data-action="toggle" data-index="${i}">${layer.visible ? '👁️' : '🚫'}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${layer.name}</span>
+      ${layer.locked ? '🔒' : ''}
+    </div>
+  `).join('');
+
+  // Click handlers
+  container.querySelectorAll('.layer-item').forEach(el => {
+    el.addEventListener('click', e => {
+      const action = e.target.dataset.action;
+      const idx = parseInt(e.target.dataset.index);
+
+      if (action === 'toggle') {
+        APP.layers[idx].visible = !APP.layers[idx].visible;
+        renderLayerList();
+        renderCurrentFrame();
+      } else {
+        APP.currentLayerIndex = parseInt(el.dataset.index);
+        renderLayerList();
+      }
+    });
+  });
+}
+
+// ============================================================
+// TIMELINE
+// ============================================================
+function renderTimeline() {
+  const container = document.getElementById('timeline-frames');
+  container.innerHTML = '';
+
+  for (let i = 0; i < APP.totalFrames; i++) {
+    const isKeyframe = APP.keyframes.has(i);
+    const isAI = APP.aiGenerated.has(i);
+    const isActive = i === APP.currentFrame;
+
+    const div = document.createElement('div');
+    div.className = `timeline-frame${isActive ? ' active' : ''}${isKeyframe ? ' keyframe' : ''}${isAI ? ' ai' : ''}`;
+    div.innerHTML = `
+      <div class="thumb"></div>
+      <span class="num">${i + 1}</span>
+      ${isKeyframe ? '<span style="font-size:8px;color:var(--warning);">KEY</span>' : ''}
+      ${isAI ? '<span style="font-size:8px;color:var(--accent);">AI</span>' : ''}
+    `;
+    div.addEventListener('click', () => goToFrame(i));
+    container.appendChild(div);
+  }
+
+  document.getElementById('frame-info').textContent = `Frame ${APP.currentFrame + 1}/${APP.totalFrames}`;
+}
+
+function updateTimelineActive() {
+  const frames = document.querySelectorAll('.timeline-frame');
+  frames.forEach((f, i) => f.classList.toggle('active', i === APP.currentFrame));
+  document.getElementById('frame-info').textContent = `Frame ${APP.currentFrame + 1}/${APP.totalFrames}`;
+}
+
+function goToFrame(index) {
+  if (index < 0 || index >= APP.totalFrames) return;
+  APP.currentFrame = index;
+  renderCurrentFrame();
+  updateTimelineActive();
+}
+
+function addFrame() {
+  APP.totalFrames++;
+  APP.frames.push({ strokes: [], bitmap: null });
+  if (APP.currentFrame >= APP.totalFrames - 1) {
+    APP.currentFrame = APP.totalFrames - 1;
+  }
+  renderTimeline();
+  renderCurrentFrame();
+  showToast(`Added frame ${APP.totalFrames}`);
+}
+
+function togglePlayback() {
+  if (APP.isPlaying) {
+    stopPlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  APP.isPlaying = true;
+  document.getElementById('btn-play').textContent = '⏸️';
+  const interval = 1000 / APP.fps;
+  APP.playInterval = setInterval(() => {
+    APP.currentFrame = (APP.currentFrame + 1) % APP.totalFrames;
+    renderCurrentFrame();
+    updateTimelineActive();
+  }, interval);
+}
+
+function stopPlayback() {
+  APP.isPlaying = false;
+  document.getElementById('btn-play').textContent = '▶️';
+  if (APP.playInterval) clearInterval(APP.playInterval);
+  APP.playInterval = null;
+}
+
+function toggleKeyframe() {
+  if (APP.keyframes.has(APP.currentFrame)) {
+    APP.keyframes.delete(APP.currentFrame);
+    showToast('Keyframe removed');
+  } else {
+    APP.keyframes.add(APP.currentFrame);
+    showToast('Keyframe marked');
+  }
+  renderTimeline();
+}
+
+function duplicateFrame() {
+  APP.totalFrames++;
+  const newIdx = APP.totalFrames - 1;
+
+  // Copy strokes from current frame
+  for (const layer of APP.layers) {
+    const srcFrame = layer.frames[APP.currentFrame];
+    if (srcFrame) {
+      layer.frames[newIdx] = {
+        strokes: srcFrame.strokes.map(s => ({
+          ...s,
+          points: s.points.map(p => ({ ...p }))
+        }))
+      };
+    }
+  }
+
+  APP.frames.push({ strokes: [], bitmap: null });
+  if (APP.keyframes.has(APP.currentFrame)) APP.keyframes.add(newIdx);
+  APP.currentFrame = newIdx;
+  renderTimeline();
+  renderCurrentFrame();
+  showToast(`Duplicated to frame ${newIdx + 1}`);
+}
+
+function clearFrame() {
+  for (const layer of APP.layers) {
+    if (layer.frames[APP.currentFrame]) {
+      layer.frames[APP.currentFrame].strokes = [];
+    }
+  }
+  renderCurrentFrame();
+  showToast('Frame cleared');
+}
+
+// ============================================================
+// AI FEATURES
+// ============================================================
+
+// EASING FUNCTIONS
+function applyEasing(t, type) {
+  switch (type) {
+    case 'linear': return t;
+    case 'smooth': return t * t * (3 - 2 * t);
+    case 'easein': return t * t;
+    case 'easeout': return 1 - (1 - t) * (1 - t);
+    case 'easeinout': return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    case 'bounce': return bounceOut(t);
+    case 'elastic': return elasticOut(t);
+    default: return t;
+  }
+}
+
+function bounceOut(t) {
+  const n1 = 7.5625, d1 = 2.75;
+  if (t < 1 / d1) return n1 * t * t;
+  if (t < 2 / d1) { t -= 1.5 / d1; return n1 * t * t + 0.75; }
+  if (t < 2.5 / d1) { t -= 2.25 / d1; return n1 * t * t + 0.9375; }
+  t -= 2.625 / d1;
+  return n1 * t * t + 0.984375;
+}
+
+function elasticOut(t) {
+  if (t === 0 || t === 1) return t;
+  return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+}
+
+// AUTO IN-BETWEENING
+function generateInBetweens() {
+  if (APP.keyframes.size < 2) {
+    showToast('Need at least 2 keyframes! Mark some frames as keyframes first.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-tween');
+  btn.innerHTML = '<span class="loading"></span> Generating...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    const easingType = document.getElementById('easing-type').value;
+    const numInBetweens = parseInt(document.getElementById('inbetween-count').value);
+
+    // Get sorted keyframe indices
+    const sortedKeys = [...APP.keyframes].sort((a, b) => a - b);
+
+    for (let k = 0; k < sortedKeys.length - 1; k++) {
+      const frameA = sortedKeys[k];
+      const frameB = sortedKeys[k + 1];
+      const gap = frameB - frameA;
+
+      if (gap <= 1) continue;
+
+      // Generate in-betweens for each layer
+      for (let ib = 1; ib <= Math.min(numInBetweens, gap - 1); ib++) {
+        const targetFrame = frameA + ib;
+        const rawT = ib / (numInBetweens + 1);
+        const t = applyEasing(rawT, easingType);
+
+        for (const layer of APP.layers) {
+          const strokesA = layer.frames[frameA]?.strokes || [];
+          const strokesB = layer.frames[frameB]?.strokes || [];
+
+          if (strokesA.length === 0 && strokesB.length === 0) continue;
+
+          const interpolatedStrokes = interpolateStrokeLists(strokesA, strokesB, t);
+
+          if (!layer.frames[targetFrame]) {
+            layer.frames[targetFrame] = { strokes: [] };
+          }
+          layer.frames[targetFrame].strokes = interpolatedStrokes;
+        }
+
+        APP.aiGenerated.add(targetFrame);
+      }
+    }
+
+    renderTimeline();
+    renderCurrentFrame();
+    btn.innerHTML = '✨ Generate In-Betweens';
+    btn.disabled = false;
+    showToast(`Generated in-betweens between ${APP.keyframes.size} keyframes!`);
+  }, 300);
+}
+
+function interpolateStrokeLists(strokesA, strokesB, t) {
+  if (strokesA.length === 0 && strokesB.length === 0) return [];
+  if (strokesA.length === 0) return strokesB.map(s => ({ ...s, opacity: s.opacity * t }));
+  if (strokesB.length === 0) return strokesA.map(s => ({ ...s, opacity: s.opacity * (1 - t) }));
+
+  // Simple matching: pair strokes by order
+  const result = [];
+  const maxLen = Math.max(strokesA.length, strokesB.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const sa = strokesA[i % strokesA.length];
+    const sb = strokesB[i % strokesB.length];
+
+    // Interpolate point-by-point
+    const maxPts = Math.max(sa.points.length, sb.points.length);
+    const interpPoints = [];
+
+    for (let p = 0; p < maxPts; p++) {
+      const pa = sa.points[Math.floor(p * sa.points.length / maxPts)];
+      const pb = sb.points[Math.floor(p * sb.points.length / maxPts)];
+
+      interpPoints.push({
+        x: pa.x + (pb.x - pa.x) * t,
+        y: pa.y + (pb.y - pa.y) * t,
+        pressure: (pa.pressure || 1) + ((pb.pressure || 1) - (pa.pressure || 1)) * t,
+        tilt: (pa.tilt || 0) + ((pb.tilt || 0) - (pa.tilt || 0)) * t,
+      });
+    }
+
+    // Interpolate colors
+    const ca = hexToRgb(sa.color);
+    const cb = hexToRgb(sb.color);
+    const cr = Math.round(ca.r + (cb.r - ca.r) * t);
+    const cg = Math.round(ca.g + (cb.g - ca.g) * t);
+    const cb2 = Math.round(ca.b + (cb.b - ca.b) * t);
+
+    result.push({
+      points: interpPoints,
+      color: `rgb(${cr},${cg},${cb2})`,
+      size: sa.size + (sb.size - sa.size) * t,
+      opacity: sa.opacity + (sb.opacity - sa.opacity) * t,
+      tool: t < 0.5 ? sa.tool : sb.tool,
+      aiGenerated: true,
+    });
+  }
+
+  return result;
+}
+
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+// MOTION SMOOTHING
+function applyMotionSmoothing() {
+  const btn = document.getElementById('btn-smooth');
+  btn.innerHTML = '<span class="loading"></span> Smoothing...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    const strength = APP.motionSmoothingStrength;
+
+    for (const layer of APP.layers) {
+      // Collect all frames for this layer
+      const frameIndices = Object.keys(layer.frames).map(Number).sort((a, b) => a - b);
+
+      if (frameIndices.length < 3) continue;
+
+      // For each frame, blend with neighbors
+      const smoothed = {};
+
+      for (let fi = 0; fi < frameIndices.length; fi++) {
+        const idx = frameIndices[fi];
+        const strokes = layer.frames[idx].strokes;
+        if (strokes.length === 0) continue;
+
+        const newStrokes = strokes.map(stroke => {
+          // Apply slight spatial smoothing
+          const smoothedPoints = smoothPoints(stroke.points, strength);
+          return { ...stroke, points: smoothedPoints };
+        });
+
+        smoothed[idx] = { strokes: newStrokes };
+      }
+
+      // Apply smoothed data
+      for (const [idx, val] of Object.entries(smoothed)) {
+        layer.frames[parseInt(idx)] = val;
+      }
+    }
+
+    renderCurrentFrame();
+    btn.innerHTML = '✨ Apply Smoothing';
+    btn.disabled = false;
+    showToast(`Motion smoothing applied (${Math.round(strength * 100)}%)`);
+  }, 200);
+}
+
+function smoothPoints(points, strength) {
+  if (points.length < 3) return points;
+  const result = [];
+
+  // Simple moving average with weight
+  for (let i = 0; i < points.length; i++) {
+    const w = strength * 0.5;
+    if (i === 0 || i === points.length - 1) {
+      result.push({ ...points[i] });
+    } else {
+      result.push({
+        x: points[i].x * (1 - w) + (points[i - 1].x + points[i + 1].x) / 2 * w,
+        y: points[i].y * (1 - w) + (points[i - 1].y + points[i + 1].y) / 2 * w,
+        pressure: points[i].pressure || 1,
+        tilt: points[i].tilt || 0,
+      });
+    }
+  }
+
+  return result;
+}
+
+// AUTO CHARACTER RIGGING
+function autoRigCharacter() {
+  const btn = document.getElementById('btn-auto-rig');
+  btn.innerHTML = '<span class="loading"></span> Detecting...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // Collect all points from current frame across layers
+    let allPoints = [];
+    for (const layer of APP.layers) {
+      const frame = layer.frames[APP.currentFrame];
+      if (!frame) continue;
+      for (const stroke of frame.strokes) {
+        allPoints = allPoints.concat(stroke.points);
+      }
+    }
+
+    if (allPoints.length < 10) {
+      btn.innerHTML = '🦴 Auto-Rig Character';
+      btn.disabled = false;
+      showToast('Not enough strokes to detect a character. Draw something first!');
+      return;
+    }
+
+    // Detect body landmarks
+    const xs = allPoints.map(p => p.x);
+    const ys = allPoints.map(p => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const bodyH = maxY - minY;
+    const bodyW = maxX - minX;
+
+    // Build simple skeleton
+    const joints = [];
+    const bones = [];
+
+    const head = { x: cx, y: minY + bodyH * 0.1, name: 'Head', isEndpoint: true };
+    const neck = { x: cx, y: minY + bodyH * 0.2, name: 'Neck' };
+    const spine = { x: cx, y: minY + bodyH * 0.4, name: 'Spine' };
+    const hip = { x: cx, y: minY + bodyH * 0.55, name: 'Hip' };
+    const lShoulder = { x: minX + bodyW * 0.15, y: minY + bodyH * 0.23, name: 'L Shoulder' };
+    const rShoulder = { x: maxX - bodyW * 0.15, y: minY + bodyH * 0.23, name: 'R Shoulder' };
+    const lElbow = { x: minX + bodyW * 0.05, y: minY + bodyH * 0.4, name: 'L Elbow' };
+    const rElbow = { x: maxX - bodyW * 0.05, y: minY + bodyH * 0.4, name: 'R Elbow' };
+    const lWrist = { x: minX + bodyW * 0.02, y: minY + bodyH * 0.55, name: 'L Wrist', isEndpoint: true };
+    const rWrist = { x: maxX - bodyW * 0.02, y: minY + bodyH * 0.55, name: 'R Wrist', isEndpoint: true };
+    const lHip = { x: cx - bodyW * 0.12, y: minY + bodyH * 0.55, name: 'L Hip' };
+    const rHip = { x: cx + bodyW * 0.12, y: minY + bodyH * 0.55, name: 'R Hip' };
+    const lKnee = { x: cx - bodyW * 0.1, y: minY + bodyH * 0.75, name: 'L Knee' };
+    const rKnee = { x: cx + bodyW * 0.1, y: minY + bodyH * 0.75, name: 'R Knee' };
+    const lAnkle = { x: cx - bodyW * 0.08, y: maxY, name: 'L Ankle', isEndpoint: true };
+    const rAnkle = { x: cx + bodyW * 0.08, y: maxY, name: 'R Ankle', isEndpoint: true };
+
+    joints.push(head, neck, spine, hip, lShoulder, rShoulder, lElbow, rElbow, lWrist, rWrist, lHip, rHip, lKnee, rKnee, lAnkle, rAnkle);
+
+    // Create bones
+    bones.push({ name: 'Spine', from: hip, to: spine });
+    bones.push({ name: 'Neck', from: spine, to: neck });
+    bones.push({ name: 'Head', from: neck, to: head });
+    bones.push({ name: 'L Clavicle', from: neck, to: lShoulder });
+    bones.push({ name: 'R Clavicle', from: neck, to: rShoulder });
+    bones.push({ name: 'L Upper Arm', from: lShoulder, to: lElbow });
+    bones.push({ name: 'L Forearm', from: lElbow, to: lWrist });
+    bones.push({ name: 'R Upper Arm', from: rShoulder, to: rElbow });
+    bones.push({ name: 'R Forearm', from: rElbow, to: rWrist });
+    bones.push({ name: 'L Thigh', from: lHip, to: lKnee });
+    bones.push({ name: 'L Shin', from: lKnee, to: lAnkle });
+    bones.push({ name: 'R Thigh', from: rHip, to: rKnee });
+    bones.push({ name: 'R Shin', from: rKnee, to: rAnkle });
+
+    APP.rig = { joints, bones, name: 'Auto-Rigged Character' };
+    APP.showRig = true;
+
+    renderCurrentFrame();
+    btn.innerHTML = '🦴 Auto-Rig Character';
+    btn.disabled = false;
+    showToast('Character rigged! Toggle rig overlay from the view menu.');
+  }, 400);
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportGIF() {
+  showToast('Rendering animation frames...');
+
+  // We'll create a simple frame export by rendering each frame to a display
+  const originalFrame = APP.currentFrame;
+  const wasPlaying = APP.isPlaying;
+  if (wasPlaying) stopPlayback();
+
+  // For now, download as JSON (project file)
+  const projectData = {
+    version: 1,
+    width: APP.width,
+    height: APP.height,
+    fps: APP.fps,
+    totalFrames: APP.totalFrames,
+    layers: APP.layers.map(l => ({
+      id: l.id, name: l.name, visible: l.visible,
+      frames: Object.fromEntries(
+        Object.entries(l.frames).map(([k, v]) => [k, { strokes: v.strokes.map(s => ({
+          points: s.points.map(p => ({ x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 })),
+          color: s.color, size: s.size, opacity: s.opacity, tool: s.tool
+        }))}])
+      )
+    })),
+    keyframes: [...APP.keyframes],
+  };
+
+  const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `animation_${new Date().toISOString().slice(0, 10)}.asproj`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  APP.currentFrame = originalFrame;
+  if (wasPlaying) startPlayback();
+  showToast('Project exported! (JSON format)');
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  toast.style.animation = 'none';
+  toast.offsetHeight; // trigger reflow
+  toast.style.animation = 'fadeInOut 2s forwards';
+  setTimeout(() => { toast.style.display = 'none'; }, 2000);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', init);
+
+console.log('🎬 Animation Studio ready!');
+console.log('  Tools: B=Brush P=Pencil I=Ink A=Airbrush E=Eraser');
+console.log('  Nav: Arrow keys, Space=Play/Pause');
+console.log('  Undo: Ctrl+Z, Redo: Ctrl+Y');
+console.log('  Onion skin: O key');
+console.log('  Draw on the canvas and use AI tools in the right panel!');
+</script>
+</body>
+</html>
